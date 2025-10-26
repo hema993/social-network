@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+
+    environment {
+        // Change these values to your own
+        DOCKERHUB_CREDENTIALS = 'credentials-hub'  // Jenkins credentials ID
+        DOCKERHUB_USERNAME = 'hema84683'   // e.g., hema993 or raju925
+        IMAGE_NAME = 'social-network'                    // Image name
+        IMAGE_TAG = 'latest'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "Cloning repository..."
+                git 'https://github.com/hema993/social-network.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image..."
+                script {
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                echo "Logging in to Docker Hub..."
+                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    sh "echo $PASS | docker login -u hema84683 --password-stdin"
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                echo "Pushing image to Docker Hub..."
+                sh "docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                echo "Cleaning up local Docker images..."
+                sh "docker rmi ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} || true"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Build and Push completed successfully!"
+        }
+        failure {
+            echo "❌ Build failed. Check logs!"
+        }
+    }
+}
+
